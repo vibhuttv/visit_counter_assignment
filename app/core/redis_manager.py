@@ -80,12 +80,18 @@ class RedisManager:
         # 2. Retrieve the value
         # 3. Handle potential failures and retries
         # return 69
-        try:
-            client = await self.get_connection(key)
-            valid_key = client.exists(key)
-            if valid_key == 0:
-                return 0
-            return client.get(key)
-        except Exception as e:
-            logger.info(f"Redis error during get: {e}")
-            raise e
+
+        logger.info("Connecting to redis")
+        
+        for tries in range(1, 4):
+            try:
+                client = await self.get_connection(key)
+                valid_key = client.exists(key)
+                if valid_key == 0:
+                    return 0
+                return client.get(key)
+            except Exception as e:
+                if(tries < 3):
+                    logger.info(f"{tries} Retrying...")
+                else:
+                    logger.info(f"Redis error during get: {e}")

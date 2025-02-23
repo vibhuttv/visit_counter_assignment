@@ -3,7 +3,11 @@ from typing import Dict, Any
 from ....services.visit_counter import VisitCounterService
 from ....schemas.counter import VisitCount
 
+from app.logging import logger
 router = APIRouter()
+
+# visit_counter_service = VisitCounterService()
+
 
 # Dependency to get VisitCounterService instance
 def get_visit_counter_service():
@@ -27,6 +31,7 @@ async def get_visits(
     counter_service: VisitCounterService = Depends(get_visit_counter_service)
 ):
     """Get visit count for a website"""
+    logger.info("u3u")
     try:
         count = await counter_service.get_visit_count(page_id)
         return VisitCount(page_id=page_id, count=count)

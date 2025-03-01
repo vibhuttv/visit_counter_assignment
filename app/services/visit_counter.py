@@ -18,9 +18,10 @@ class VisitCounterService():
         self.page_visits = {}
         self.buffer_write = {}
         self.redis_manager = RedisManager()
-        # asyncio.create_task(self.flush_visits())
 
         asyncio.create_task(self.periodic_flush())
+        
+        
         
     async def flush_visits(self):
         logger.info("Flushing...")
@@ -31,6 +32,8 @@ class VisitCounterService():
         
         for cur_page, buffer_visits in buffer_list:
             await self.redis_manager.increment(cur_page, buffer_visits)
+            
+            
             
             
     async def periodic_flush(self):
@@ -52,16 +55,12 @@ class VisitCounterService():
             page_id: Unique identifier for the page
         """
         # TODO: Implement visit count increment
-        # if(page_id in self.buffer_write):    self.buffer_write[page_id] += 1
-        # else:
-        #     self.buffer_write[page_id] = 1
         
         self.buffer_write[page_id] = self.buffer_write.get(page_id, 0) + 1
         
         if(page_id in self.page_visits):    self.page_visits[page_id][0] += 1
         else:   self.page_visits[page_id] = [1, 0]
         
-        # if(time.time() - self.last_flushed > 30):   pass #self.flush_visits()
             
                 
                 

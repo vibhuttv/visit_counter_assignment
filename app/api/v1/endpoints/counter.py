@@ -11,7 +11,6 @@ visit_counter_service = VisitCounterService()
 
 # Dependency to get VisitCounterService instance
 def get_visit_counter_service():
-    # return VisitCounterService()
     return visit_counter_service
 
 @router.post("/visit/{page_id}")

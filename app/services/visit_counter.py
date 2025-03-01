@@ -42,7 +42,7 @@ class VisitCounterService():
         if(page_id in self.page_visits.keys()):
             time_diff = time.time() - self.page_visits[page_id][1]
             
-            if(time_diff <= 10):  
+            if(time_diff <= 5):  
                 return (self.page_visits[page_id][0], "in_memory")
             
             

@@ -79,7 +79,6 @@ class RedisManager:
         # 1. Get the appropriate Redis connection
         # 2. Retrieve the value
         # 3. Handle potential failures and retries
-        # return 69
 
         logger.info("Connecting to redis")
         

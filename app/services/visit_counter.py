@@ -22,7 +22,6 @@ class VisitCounterService():
         """
         # TODO: Implement visit count increment
         await self.redis_manager.increment(page_id)
-        pass
 
     async def get_visit_count(self, page_id: str) -> int:
         """
@@ -37,4 +36,3 @@ class VisitCounterService():
         # TODO: Implement getting visit count
         
         return await self.redis_manager.get(page_id)
-        return 0

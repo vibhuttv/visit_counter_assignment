@@ -1,8 +1,8 @@
+import asyncio
 import redis
 from typing import Dict, List, Optional, Any
 from .consistent_hash import ConsistentHash
 from .config import settings
-
 from app.logging import logger
 
 class RedisManager:
@@ -13,16 +13,14 @@ class RedisManager:
         
         # Parse Redis nodes from comma-separated string
         redis_nodes = [node.strip() for node in settings.REDIS_NODES.split(",") if node.strip()]
-        logger.info(redis_nodes)
         self.consistent_hash = ConsistentHash(redis_nodes, settings.VIRTUAL_NODES)
         
         # TODO: Initialize connection pools for each Redis node
-        for node in redis_nodes:
-            # 1. Create connection pools for each Redis node
-            cur = redis.ConnectionPool.from_url(node)
-            self.connection_pools[node] = cur
-            # 2. Initialize Redis clients
-            self.redis_clients[node] = redis.Redis(connection_pool = cur)
+        # 1. Create connection pools for each Redis node
+        # 2. Initialize Redis clients
+        for node in redis_nodes:    
+            self.connection_pools[node] = redis.ConnectionPool.from_url(node)
+            self.redis_clients[node] = redis.Redis(connection_pool=self.connection_pools[node])
 
     async def get_connection(self, key: str) -> redis.Redis:
         """
@@ -37,10 +35,15 @@ class RedisManager:
         # TODO: Implement getting the appropriate Redis connection
         # 1. Use consistent hashing to determine which node should handle this key
         # 2. Return the Redis client for that node
-        return self.redis_clients[r'redis://redis1:6379']
-        pass
+        # node = self.consistent_hash.get_node(key)
+        # return self.redis_clients[node]
+        # first_node = next(iter(self.redis_clients))  # Get the first node in the dictionary for Task2
+        # return self.redis_clients[first_node]
 
-    async def increment(self, key: str, amount: int = 1) -> None:
+        node = self.consistent_hash.get_node(key)
+        return self.redis_clients[node]
+
+    async def increment(self, key: str, amount: int = 1, retries: int = 3) -> int:
         """
         Increment a counter in Redis
         
@@ -55,17 +58,20 @@ class RedisManager:
         # 1. Get the appropriate Redis connection
         # 2. Increment the counter
         # 3. Handle potential failures and retries
-        
-        client = await self.get_connection(key)
-        valid_key = client.exists(key)
-        if valid_key:
-            logger.info("new " + key)
-            client.incrby(key, amount)
-        else:
-            logger.info("---- " + key)
-            client.set(key, 1)
+        for attempt in range(retries):
+            try:
+                connection = await self.get_connection(key)
+                redis_key = key
+                connection.incrby(redis_key, amount)
+                return True
+            except Exception as e:
+                logger.error(f"Attempt {attempt + 1}: Failed to increment counter: {e}")
+                if attempt < retries - 1:
+                    await asyncio.sleep(2) # sleep for 2 seconds
+                else:
+                    raise e
 
-    async def get(self, key: str) -> Optional[int]:
+    async def get(self, key: str, retries: int = 3) -> Optional[int]:
         """
         Get value for a key from Redis
         
@@ -80,17 +86,21 @@ class RedisManager:
         # 2. Retrieve the value
         # 3. Handle potential failures and retries
 
-        logger.info("Connecting to redis")
-        
-        for tries in range(1, 4):
+        for attempt in range(retries):
             try:
-                client = await self.get_connection(key)
-                valid_key = client.exists(key)
+                connection = await self.get_connection(key)
+                valid_key = connection.exists(key)  # return 1 if key exists else 0
                 if valid_key == 0:
                     return 0
-                return client.get(key)
+                return int(connection.get(key))
             except Exception as e:
-                if(tries < 3):
-                    logger.info(f"{tries} Retrying...")
+                logger.error(f"Attempt {attempt + 1}: Failed to get value: {e}")
+                if attempt < retries - 1:
+                    await asyncio.sleep(2) # sleep for 2 seconds
                 else:
-                    logger.info(f"Redis error during get: {e}")
+                    raise e
+
+    async def insert_batch_to_redis(self, data: Dict[str, int]) -> None:
+        """Write data to Redis"""
+        for key, value in data.items():
+            await self.increment(key, value)
